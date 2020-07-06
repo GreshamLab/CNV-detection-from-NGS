@@ -9,6 +9,14 @@
 // set some parameters
 params.out = "${params.outdir}/out"
 params.tmpdir = "${params.outdir}/cnv_temp"
+params.minimum_read_length = 50
+
+// Define modules here
+BWA = 'bwa/intel/0.7.15'
+TRIMGALORE = 'trim_galore/0.4.4'
+CUTADAPT = 'cutadapt/intel/1.12'
+SAMTOOLS = 'samtools/intel/1.3.1'
+
 
 // print starting parameters
 println "reads: $params.reads"
@@ -40,19 +48,44 @@ process trim {
 	into trimmed_reads_ch
 
     script:
+    """
     module purge
-    module load trim_galore/0.4.4
-    module load cutadapt/intel/1.12
+    module load $TRIMGALORE
+    module load $CUTADAPT
 
-    trim_galore --fastqc --length ${minimum_read_length} \
+    trim_galore --fastqc --length ${params.minimum_read_length} \
     --trim-n \
-    --clip_R1 ${bases_trim_5prime_Read1} \
-    --clip_R2 ${bases_trim_5prime_Read2} \
-    --three_prime_clip_R1 ${bases_trim_3prime_Read1} \
-    --three_prime_clip_R2 ${bases_trim_3prime_Read2} \
+    --clip_R1 ${params.bases_trim_5prime_Read1} \
+    --clip_R2 ${params.bases_trim_5prime_Read2} \
+    --three_prime_clip_R1 ${params.bases_trim_3prime_Read1} \
+    --three_prime_clip_R2 ${params.bases_trim_3prime_Read2} \
     -o $PWD \
     --paired \
-    ${fastq1} \
-    ${fastq2}
+    ${reads[0]} \        
+    ${reads[1]}
+
+    """
+
+process align {
+    publishDir "${params.out}/aligned_reads", mode:'copy'
+	
+    input:
+    set pair_id, file(trimmed_reads) from trimmed_reads_ch
+     
+    output:
+    set val(pair_id), file("${pair_id}_aligned_reads.bam") \
+	into aligned_reads_ch
+
+    script:
+    """
+    module purge
+    module load $BWA
+    module load $SAMTOOLS
+    bwa mem -t 20 ${ref} ${read[0]} ${read[1]} > ${pair_id}.bam
+    samtools sort ${pair_id}.bam > ${pair_id}.sorted.bam
+    samtools index ${pair_id}.sorted.bam
+    
+    """
+
 
 }
