@@ -16,7 +16,7 @@ BWA = 'bwa/intel/0.7.15'
 TRIMGALORE = 'trim_galore/0.4.4'
 CUTADAPT = 'cutadapt/intel/1.12'
 SAMTOOLS = 'samtools/intel/1.3.1'
-PICARD_JAR = 'java -jar /share/apps/picard/2.8.2/picard-2.8.2.jar'
+PICARD_JAR = '/share/apps/picard/2.8.2/picard-2.8.2.jar'
 
 
 // print starting parameters
@@ -64,6 +64,7 @@ process trim {
     --paired \
     ${reads[0]} \
     ${reads[1]}
+
     """
 }    
 
@@ -72,7 +73,7 @@ process align {
 	
     input:
     set pair_id, file(trimmed_reads1), file(trimmed_reads2) from trimmed_reads_ch 
-    file(ref) from ref_align
+    file (ref) from ref_align
      
     output:
     set val(pair_id), file("${pair_id}_aligned_reads.sorted.bam"), file("${pair_id}_aligned_reads.sorted.bam.bai") into aligned_reads_ch
@@ -82,6 +83,7 @@ process align {
     module purge
     module load $BWA
     module load $SAMTOOLS
+    bwa index ${ref}
     bwa mem -t 20 ${ref} ${trimmed_reads1} ${trimmed_reads2} > ${pair_id}_aligned_reads.bam
     samtools sort ${pair_id}_aligned_reads.bam > ${pair_id}_aligned_reads.sorted.bam
     samtools index ${pair_id}_aligned_reads.sorted.bam
@@ -94,32 +96,32 @@ process insert_size {
 
     input:
     set pair_id, file(sorted_bam), file(index_bam) from aligned_reads_ch
-    file(ref) from ref_insert_metric 
+    file (ref) from ref_insert_metric 
 
     output:
     set val(pair_id), file("${pair_id}_alignment_metrics.txt"), file("${pair_id}_insert_size_histogram.pdf"), file("${pair_id}_insert_size_metrics.txt") into insert_size_ch
 
     script: 
-    '''
+    """
     # obtaining alignment metrics using Picards tools
     module purge
     module load picard/2.8.2
     java -jar $PICARD_JAR \
     CollectAlignmentSummaryMetrics \
-    R=${ref} \
-    I=${sorted_bam} \
+    R=$ref \
+    I=$sorted_bam \
     O=alignment_metrics.txt
 
-    grep -v '^#' alignment_metrics.txt | cut -f1-12 | sed '/^[[:space:]]*$/d' > ${pair_id}_alignment_metrics.txt
+    grep -v '^#' alignment_metrics.txt | cut -f1-12 | sed '/^[[:space:]]*\$/d' > ${pair_id}_alignment_metrics.txt
 
     # obtaining insert size metrics using Picards tools
     java -jar $PICARD_JAR \
     CollectInsertSizeMetrics \
-    INPUT=${sorted_bam}  \
+    INPUT=$sorted_bam  \
     OUTPUT=insert_metrics.txt \
     HISTOGRAM_FILE=${pair_id}_insert_size_histogram.pdf
 
-    head -n 9 insert_metrics.txt | grep -v '^#' | cut -f1-1f9|sed '/^[[:space:]]*$/d' >${pair_id}_insert_size_metrics.txt
+    head -n 9 insert_metrics.txt | grep -v '^#' | cut -f1-1f9|sed '/^[[:space:]]*\$/d' >${pair_id}_insert_size_metrics.txt
     
-    '''
+    """
 }
