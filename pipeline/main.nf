@@ -106,6 +106,7 @@ process insert_size {
     # obtaining alignment metrics using Picards tools
     module purge
     module load picard/2.8.2
+    module load r/intel/3.3.2
     java -jar $PICARD_JAR \
     CollectAlignmentSummaryMetrics \
     R=$ref \
@@ -117,11 +118,11 @@ process insert_size {
     # obtaining insert size metrics using Picards tools
     java -jar $PICARD_JAR \
     CollectInsertSizeMetrics \
-    INPUT=$sorted_bam  \
+    INPUT=$sorted_bam \
     OUTPUT=insert_metrics.txt \
     HISTOGRAM_FILE=${pair_id}_insert_size_histogram.pdf
 
-    head -n 9 insert_metrics.txt | grep -v '^#' | cut -f1-1f9|sed '/^[[:space:]]*\$/d' >${pair_id}_insert_size_metrics.txt
+    head -n 9 insert_metrics.txt | grep -v '^#' | cut -f1-19|sed '/^[[:space:]]*\$/d' >${pair_id}_insert_size_metrics.txt
     
     """
 }
