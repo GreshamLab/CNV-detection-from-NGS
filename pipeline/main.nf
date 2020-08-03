@@ -26,8 +26,8 @@ println "output: $params.out"
 println "cnv temp dir: $params.tmpdir"
 
 // Setup the reference file
-#ref = file(params.ref)
 reference_ch = Channel.fromPath(params.ref)
+reference_ch.into { ref_align; ref_insert_metric }
 
 /* Prepare the fastq read pairs for input.
  * While doing this, count number of input samples
@@ -71,7 +71,8 @@ process align {
     publishDir "${params.out}/aligned_reads", mode:'copy'
 	
     input:
-    set pair_id, file(trimmed_reads1), file(trimmed_reads2) from trimmed_reads_ch, file(ref) from reference_ch
+    set pair_id, file(trimmed_reads1), file(trimmed_reads2) from trimmed_reads_ch 
+    file(ref) from ref_align
      
     output:
     set val(pair_id), file("${pair_id}_aligned_reads.sorted.bam"), file("${pair_id}_aligned_reads.sorted.bam.bai") into aligned_reads_ch
@@ -86,15 +87,14 @@ process align {
     samtools index ${pair_id}_aligned_reads.sorted.bam
     
     """
-
-
 }
 
 process insert_size {
     publishDir "${params.out}/insert_size_metrics", mode:'copy'
 
     input:
-    set pair_id, file(sorted_bam), file(index_bam) from aligned_reads_ch, file(ref) from reference_ch 
+    set pair_id, file(sorted_bam), file(index_bam) from aligned_reads_ch
+    file(ref) from ref_insert_metric 
 
     output:
     set val(pair_id), file("${pair_id}_alignment_metrics.txt"), file("${pair_id}_insert_size_histogram.pdf"), file("${pair_id}_insert_size_metrics.txt") into insert_size_ch
