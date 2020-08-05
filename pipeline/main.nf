@@ -27,7 +27,7 @@ println "cnv temp dir: $params.tmpdir"
 
 // Setup the reference file
 reference_ch = Channel.fromPath(params.ref)
-reference_ch.into { ref_align; ref_insert_metric }
+reference_ch.into { ref_align; ref_insert_metric; ref_pindel }
 
 /* Prepare the fastq read pairs for input.
  * While doing this, count number of input samples
@@ -91,11 +91,14 @@ process align {
     """
 }
 
+// Copy aligned_reads_ch to be used in multiple processes
+( bam_insert_size, bam_read_depth, bam_pindel, bam_lumpy ) = aligned_reads_ch.into(4)
+
 process insert_size {
     publishDir "${params.out}/insert_size_metrics", mode:'copy'
 
     input:
-    set pair_id, file(sorted_bam), file(index_bam) from aligned_reads_ch
+    set pair_id, file(sorted_bam), file(index_bam) from bam_insert_size
     file (ref) from ref_insert_metric 
 
     output:
@@ -124,5 +127,58 @@ process insert_size {
 
     head -n 9 insert_metrics.txt | grep -v '^#' | cut -f1-19|sed '/^[[:space:]]*\$/d' >${pair_id}_insert_size_metrics.txt
     
+    """
+}
+
+process read_depth {
+    publishDir "${params.out}/read_depth", mode:'copy'
+
+    input:
+    set pair_id, file(sorted_bam), file(index_bam) from bam_read_depth
+
+    output: 
+    set val(pair_id), file("${pair_id}_RD.txt") into read_depth_ch
+
+    script:
+    """
+    # obtaining read depth ie coverage using samtools
+    module load samtools/intel/1.3.1
+    samtools depth -a $sorted_bam > ${pair_id}_RD.txt
+    """
+}
+
+process pindel {
+    publishDir "${params.out}/pindel", mode:'copy'
+
+    input:
+    set pair_id, file(sorted_bam), file(index_bam) from bam_pindel
+    file(ref) from ref_pindel
+
+    output:
+    set val(pair_id), file("${pair_id}_pindel.vcf") into pindel_ch
+
+    script:
+    """
+    # obtain config file for pindel
+    mean_IS=$(sed -n '2p' < ${pair_id}_insert_size_metrics.txt | cut -f 5)
+    echo "$sorted_bam ${mean_IS} ${pair_id}" > config_${pair_id}.txt
+
+    module purge
+    module load pindel/intel/20170402
+    /share/apps/pindel/20170402/intel/bin/pindel \
+    -T 20 \
+    -f $ref \
+    -i config_${pair_id}.txt \
+    -c ALL \
+    -o ${pair_id}_output
+
+    pindel2vcf -p ${pair_id}_output_D -r $ref -R UCSC_SacCer -d Feb2017 -v ${pair_id}_DEL_pindel.vcf
+    pindel2vcf -p ${pair_id}_output_TD -r $ref -R UCSC_SacCer -d Feb2017 -v ${pair_id}_DUP_pindel.vcf
+
+    module purge
+    module load vcftools/intel/0.1.14
+    vcf-concat ${pair_id}_DEL_pindel.vcf ${pair_id}_DUP_pindel.vcf > ${pair_id}_pindel.vcf
+
+    echo "pindel done"
     """
 }
