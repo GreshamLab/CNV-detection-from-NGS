@@ -147,39 +147,39 @@ process read_depth {
     """
 }
 
-// process pindel {
-//     publishDir "${params.out}/pindel", mode:'copy'
+process pindel {
+    publishDir "${params.out}/pindel", mode:'copy'
 
-//     input:
-//     set pair_id, file(sorted_bam), file(index_bam) from bam_pindel
-//     file(ref) from ref_pindel
-//     file (alignment_metrics), file (histogram), file (insert_size_metrics) from insert_size_ch
+    input:
+    set pair_id, file(sorted_bam), file(index_bam) from bam_pindel
+    file(ref) from ref_pindel
+    file(alignment_metrics), file(histogram), file(insert_size_metrics) from insert_size_ch
 
-//     output:
-//     set val(pair_id), file("${pair_id}_pindel.vcf") into pindel_ch
+    output:
+    set val(pair_id), file("${pair_id}_pindel.vcf") into pindel_ch
 
-//     script:
-//     """
-//     # obtain config file for pindel
-//     mean_IS = /$(sed -n '2p' < $insert_size_metrics | cut -f 5)
-//     echo "$sorted_bam ${mean_IS} ${pair_id}" > config_${pair_id}.txt
+    script:
+    """
+    # obtain config file for pindel
+    mean_IS = /$(sed -n '2p' < $insert_size_metrics | cut -f 5)
+    echo "$sorted_bam ${mean_IS} ${pair_id}" > config_${pair_id}.txt
 
-//     module purge
-//     module load pindel/intel/20170402
-//     /share/apps/pindel/20170402/intel/bin/pindel \
-//     -T 20 \
-//     -f $ref \
-//     -i config_${pair_id}.txt \
-//     -c ALL \
-//     -o ${pair_id}_output
+    module purge
+    module load pindel/intel/20170402
+    /share/apps/pindel/20170402/intel/bin/pindel \
+    -T 20 \
+    -f $ref \
+    -i config_${pair_id}.txt \
+    -c ALL \
+    -o ${pair_id}_output
 
-//     pindel2vcf -p ${pair_id}_output_D -r $ref -R UCSC_SacCer -d Feb2017 -v ${pair_id}_DEL_pindel.vcf
-//     pindel2vcf -p ${pair_id}_output_TD -r $ref -R UCSC_SacCer -d Feb2017 -v ${pair_id}_DUP_pindel.vcf
+    pindel2vcf -p ${pair_id}_output_D -r $ref -R UCSC_SacCer -d Feb2017 -v ${pair_id}_DEL_pindel.vcf
+    pindel2vcf -p ${pair_id}_output_TD -r $ref -R UCSC_SacCer -d Feb2017 -v ${pair_id}_DUP_pindel.vcf
 
-//     module purge
-//     module load vcftools/intel/0.1.14
-//     vcf-concat ${pair_id}_DEL_pindel.vcf ${pair_id}_DUP_pindel.vcf > ${pair_id}_pindel.vcf
+    module purge
+    module load vcftools/intel/0.1.14
+    vcf-concat ${pair_id}_DEL_pindel.vcf ${pair_id}_DUP_pindel.vcf > ${pair_id}_pindel.vcf
 
-//     echo "pindel done"
-//     """
-// }
+    echo "pindel done"
+    """
+}
