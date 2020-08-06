@@ -153,7 +153,7 @@ process pindel {
     input:
     set pair_id, file(sorted_bam), file(index_bam) from bam_pindel
     file(ref) from ref_pindel
-    file(alignment_metrics), file(histogram), file(insert_size_metrics) from insert_size_ch
+    file (alignment_metrics), file (histogram), file (insert_size_metrics) from insert_size_ch
 
     output:
     set val(pair_id), file("${pair_id}_pindel.vcf") into pindel_ch
