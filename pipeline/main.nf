@@ -151,7 +151,7 @@ process pindel {
     publishDir "${params.out}/pindel", mode:'copy'
 
     input:
-    file("${pair_id}_alignment_metrics.txt"), file("${pair_id}_insert_size_histogram.pdf"), file("${pair_id}_insert_size_metrics.txt") from insert_size_ch
+    file "${pair_id}_alignment_metrics.txt", file "${pair_id}_insert_size_histogram.pdf", file "${pair_id}_insert_size_metrics.txt" from insert_size_ch
     
     // output: 
     // set val(pair_id), file("${pair_id}_pindel.vcf") into pindel_ch
