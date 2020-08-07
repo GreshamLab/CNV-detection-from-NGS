@@ -153,7 +153,7 @@ process pindel {
     input:
     set pair_id, file(sorted_bam), file(index_bam) from bam_pindel
     file(ref) from ref_pindel
-    file(alignment_metrics), file(histogram), file(insert_size_metrics) from (insert_size_ch)
+    file("${pair_id}_alignment_metrics.txt"), file("${pair_id}_insert_size_histogram.pdf"), file("${pair_id}_insert_size_metrics.txt") from insert_size_ch
 
     output:
     set val(pair_id), file("${pair_id}_pindel.vcf") into pindel_ch
@@ -161,7 +161,7 @@ process pindel {
     script:
     """
     # obtain config file for pindel
-    mean_IS = /$(sed -n '2p' < $insert_size_metrics | cut -f 5)
+    mean_IS = /$(sed -n '2p' < ${pair_id}_insert_size_metrics.txt | cut -f 5)
     echo "$sorted_bam ${mean_IS} ${pair_id}" > config_${pair_id}.txt
 
     module purge
@@ -181,6 +181,6 @@ process pindel {
     vcf-concat ${pair_id}_DEL_pindel.vcf ${pair_id}_DUP_pindel.vcf > ${pair_id}_pindel.vcf
 
     echo "pindel done"
-    
+
     """
 }
